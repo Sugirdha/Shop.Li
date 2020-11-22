@@ -1,0 +1,124 @@
+//
+//  ViewController.swift
+//  shoply
+//
+//  Created by Sugirdha on 11/11/20.
+//
+
+import UIKit
+import CoreData
+
+class ProductViewController: UIViewController {
+
+    
+    @IBOutlet weak var tableView: UITableView!
+    
+    var items: [Item] = []
+    
+    let managedContext = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+                
+        title = "Your Shop.li"
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "Cell")
+    }
+    
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        let fetchRequest = NSFetchRequest<Item>(entityName: "Item")
+        
+        do {
+            items = try managedContext.fetch(fetchRequest)
+        } catch {
+            print("Couldn't fetch \(error)")
+        }
+    }
+
+
+    @IBAction func addItem(_ sender: UIBarButtonItem) {
+        
+        let alert = UIAlertController(title: "New Item", message: "Add a new item to buy" , preferredStyle: .alert)
+        
+        let saveAction = UIAlertAction(title: "Save", style: .default) {
+            [unowned self] (action) in
+            
+            guard let textField = alert.textFields?.first, let itemToSave = textField.text else {
+                return
+            }
+                        
+            let item = Item(context: managedContext)
+            
+            item.title = itemToSave
+            item.done = false
+            items.append(item)
+
+            save()
+        }
+        
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
+        
+        alert.addTextField { (textField) in
+            textField.placeholder = "What do you need to buy?"
+        }
+        alert.addAction(saveAction)
+        alert.addAction(cancelAction)
+        
+        present(alert, animated: true)
+    }
+    
+    func save() {
+        do{
+            try managedContext.save()
+        } catch {
+            print("Could not save. \(error)")
+        }
+        tableView.reloadData()
+    }
+}
+
+//MARK: - TableViewDataSource
+
+extension ProductViewController: UITableViewDataSource, UITableViewDelegate {
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return items.count
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+
+        let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
+        let item = items[indexPath.row]
+        
+        cell.textLabel?.text = item.value(forKeyPath: "title") as? String
+
+        cell.accessoryType = item.done ? .checkmark : .none
+        return cell
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let item = items[indexPath.row]
+        item.done = !item.done
+        save()
+        tableView.deselectRow(at: indexPath, animated: true)
+    }
+    
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+
+        
+        if editingStyle == UITableViewCell.EditingStyle.delete {
+            managedContext.delete(items[indexPath.row])
+            
+            tableView.beginUpdates()
+            items.remove(at: indexPath.row)
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+            tableView.endUpdates()
+          
+            save()
+        }
+
+    }
+    
+}
